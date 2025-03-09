@@ -4,17 +4,17 @@ import pyttsx3
 
 app = Flask(__name__)
 
-# Ollama server configuration
-OLLAMA_SERVER = "http://192.168.1.50:11434"  # Change this to your actual local IP
-MODEL_NAME = "llama3:latest"
+# Default Ollama server configuration (consider using an environment variable for production)
+OLLAMA_SERVER = "http://192.168.1.50:11434"
+DEFAULT_MODEL_NAME = "llama3:latest"
 
-# Initialize text-to-speech engine
+# Initialize text-to-speech engine (not currently used in the chat flow)
 engine = pyttsx3.init()
 selected_voice_index = 0  # Change if needed
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[selected_voice_index].id)
 
-# Conversation history
+# Global conversation history (note: this is shared among all sessions/models in this simple example)
 conversation_history = ""
 
 @app.route('/')
@@ -24,31 +24,50 @@ def index():
 @app.route('/chat', methods=['POST'])
 def chat():
     global conversation_history
-    user_input = request.json.get("message", "")
+    
+    data = request.json
+    if not data:
+        return jsonify({"error": "Empty request data"}), 400
+    
+    user_input = data.get("message", "").strip()
+    model_name = data.get("model", DEFAULT_MODEL_NAME).strip()
+    
     if not user_input:
         return jsonify({"error": "Empty input"}), 400
     
+    # Update conversation history with user message
     conversation_history += f"\nUser: {user_input}\n"
     
-    response = requests.post(
-        f"{OLLAMA_SERVER}/api/generate",
-        json={
-            "model": MODEL_NAME,
-            "prompt": conversation_history,
-            "stream": False
-        }
-    )
+    # Prepare request to Ollama server
+    try:
+        response = requests.post(
+            f"{OLLAMA_SERVER}/api/generate",
+            json={
+                "model": model_name,
+                "prompt": conversation_history,
+                "stream": False
+            },
+            timeout=60  # Adjust timeout as needed
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"API error: {str(e)}"}), 500
     
-    if response.status_code == 200:
-        try:
-            result = response.json()
-            bot_reply = result.get("response", "No response").strip()
-            conversation_history += f"Llama3: {bot_reply}\n"
-            return jsonify({"response": bot_reply})
-        except requests.exceptions.JSONDecodeError:
-            return jsonify({"error": "Failed to decode JSON"}), 500
-    else:
-        return jsonify({"error": response.text}), response.status_code
+    # Parse Ollama response
+    try:
+        result = response.json()
+        bot_reply = result.get("response", "No response").strip()
+    except ValueError:
+        return jsonify({"error": "Failed to parse JSON from Ollama"}), 500
+    
+    # Append bot reply using a generic "Bot:" label
+    conversation_history += f"Bot: {bot_reply}\n"
+    
+    # Optionally, use text-to-speech (uncomment if desired)
+    # engine.say(bot_reply)
+    # engine.runAndWait()
+    
+    return jsonify({"response": bot_reply})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
