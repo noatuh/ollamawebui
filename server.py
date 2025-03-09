@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import pyttsx3
+import os
+import sys
+import keyboard
 
 app = Flask(__name__)
 
@@ -68,6 +71,16 @@ def chat():
     # engine.runAndWait()
     
     return jsonify({"response": bot_reply})
+
+@app.route('/restart', methods=['POST'])
+def restart():
+    restart_script()
+    return jsonify({"status": "restarting"}), 200
+
+def restart_script():
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+keyboard.add_hotkey('r', restart_script)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
