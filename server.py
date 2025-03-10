@@ -50,7 +50,7 @@ def chat():
                 "prompt": conversation_history,
                 "stream": False
             },
-            timeout=60  # Adjust timeout as needed
+            timeout=300  # Adjust timeout as needed
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
