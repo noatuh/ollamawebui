@@ -80,7 +80,7 @@ def restart():
 def restart_script():
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
-keyboard.add_hotkey('r', restart_script)
+keyboard.add_hotkey('ctrl+r', restart_script)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
