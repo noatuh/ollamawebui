@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ollama Web GUI</title>
-  
+
   <link rel="icon" href="webapp.png" type="image/png" />
   <link rel="apple-touch-icon" sizes="256x256" href="webapp.png" />
   <link rel="manifest" href="manifest.json" />
@@ -138,6 +138,29 @@
   </div>
 
   <script>
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock released');
+          });
+          console.log('Screen Wake Lock acquired');
+        }
+      } catch (err) {
+        console.error('Wake Lock error:', err);
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+      }
+    }
+
     document.getElementById('send-btn').addEventListener('click', sendMessage);
     document.getElementById('user-input').addEventListener('keypress', function (event) {
       if (event.key === 'Enter') sendMessage();
@@ -173,7 +196,6 @@
             const responseId = `res-${Date.now()}`;
             chatBox.innerHTML += `<p><strong>${modelDisplayName}:</strong> <span id="${responseId}"></span></p>`;
 
-            // Pre-format text
             let formattedResponse = data.response
               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
               .replace(/\n/g, '<br>');
@@ -182,9 +204,6 @@
           } else if (data.error) {
             chatBox.innerHTML += `<p><strong style="color:red;">Error:</strong> ${data.error}</p>`;
           }
-          setTimeout(() => {
-            chatBox.scrollTop = chatBox.scrollHeight;
-          }, 100);
         })
         .catch((error) => {
           chatBox.innerHTML += `<p><strong style="color:red;">Error:</strong> Failed to reach server</p>`;
@@ -192,79 +211,83 @@
         });
     }
 
-    function typeTextEffect(elementId, htmlString) {
-  const container = document.getElementById(elementId);
-  const chatBox = container.parentElement;
+    async function typeTextEffect(elementId, htmlString) {
+      const container = document.getElementById(elementId);
+      const chatBox = container.parentElement;
 
-  // Add a scroll anchor span that we can always scroll to
-  let scrollAnchor = document.createElement("span");
-  scrollAnchor.id = `scroll-anchor-${Date.now()}`;
-  chatBox.appendChild(scrollAnchor);
+      await requestWakeLock();
 
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlString;
-  const nodes = Array.from(tempDiv.childNodes);
+      let scrollAnchor = document.createElement("span");
+      scrollAnchor.id = `scroll-anchor-${Date.now()}`;
+      chatBox.appendChild(scrollAnchor);
 
-  let nodeIndex = 0;
-  let charIndex = 0;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlString;
+      const nodes = Array.from(tempDiv.childNodes);
 
-  function scrollToBottom() {
-    scrollAnchor.scrollIntoView({ behavior: 'smooth' });
-  }
+      let nodeIndex = 0;
+      let charIndex = 0;
 
-  function typeNext() {
-    if (nodeIndex >= nodes.length) return;
-
-    const currentNode = nodes[nodeIndex];
-
-    if (currentNode.nodeType === Node.TEXT_NODE) {
-      if (charIndex < currentNode.textContent.length) {
-        container.innerHTML += currentNode.textContent.charAt(charIndex);
-        charIndex++;
-        scrollToBottom();
-        setTimeout(typeNext, 10);
-      } else {
-        charIndex = 0;
-        nodeIndex++;
-        typeNext();
-      }
-    } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
-      const newElement = document.createElement(currentNode.nodeName);
-      for (let attr of currentNode.attributes) {
-        newElement.setAttribute(attr.name, attr.value);
+      function scrollToBottom() {
+        scrollAnchor.scrollIntoView({ behavior: 'smooth' });
       }
 
-      container.appendChild(newElement);
+      function typeNext() {
+        if (nodeIndex >= nodes.length) {
+          releaseWakeLock(); // done typing
+          return;
+        }
 
-      const innerText = currentNode.textContent;
-      let i = 0;
+        const currentNode = nodes[nodeIndex];
 
-      function typeInElement() {
-        if (i < innerText.length) {
-          newElement.innerHTML += innerText.charAt(i);
-          i++;
-          scrollToBottom();
-          setTimeout(typeInElement, 10);
+        if (currentNode.nodeType === Node.TEXT_NODE) {
+          if (charIndex < currentNode.textContent.length) {
+            container.innerHTML += currentNode.textContent.charAt(charIndex);
+            charIndex++;
+            scrollToBottom();
+            setTimeout(typeNext, 10);
+          } else {
+            charIndex = 0;
+            nodeIndex++;
+            typeNext();
+          }
+        } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+          const newElement = document.createElement(currentNode.nodeName);
+          for (let attr of currentNode.attributes) {
+            newElement.setAttribute(attr.name, attr.value);
+          }
+
+          container.appendChild(newElement);
+
+          const innerText = currentNode.textContent;
+          let i = 0;
+
+          function typeInElement() {
+            if (i < innerText.length) {
+              newElement.innerHTML += innerText.charAt(i);
+              i++;
+              scrollToBottom();
+              setTimeout(typeInElement, 10);
+            } else {
+              nodeIndex++;
+              typeNext();
+            }
+          }
+
+          if (currentNode.nodeName === "BR") {
+            nodeIndex++;
+            typeNext();
+          } else {
+            typeInElement();
+          }
         } else {
           nodeIndex++;
           typeNext();
         }
       }
 
-      if (currentNode.nodeName === "BR") {
-        nodeIndex++;
-        typeNext();
-      } else {
-        typeInElement();
-      }
-    } else {
-      nodeIndex++;
       typeNext();
     }
-  }
-
-  typeNext();
-}
 
     function restartServer() {
       fetch('/restart', {
