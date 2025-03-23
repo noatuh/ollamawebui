@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ollama Web GUI</title>
 
@@ -66,7 +66,8 @@
     #user-input::placeholder {
       color: #aaa;
     }
-    #send-btn {
+    #send-btn,
+    #stop-btn {
       padding: 10px 20px;
       cursor: pointer;
       background: #2c5f42;
@@ -74,8 +75,10 @@
       border: none;
       border-radius: 5px;
       transition: background 0.3s;
+      margin-left: 10px;
     }
-    #send-btn:hover {
+    #send-btn:hover,
+    #stop-btn:hover {
       background: #36734e;
     }
     #restart-btn {
@@ -111,6 +114,12 @@
         margin-right: 0;
         margin-bottom: 10px;
       }
+      #send-btn,
+      #stop-btn {
+        margin-left: 0;
+        margin-bottom: 10px;
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -133,12 +142,14 @@
       </select>
       <input type="text" id="user-input" placeholder="Type your message..." />
       <button id="send-btn">Send</button>
+      <button id="stop-btn">Stop Typing</button>
     </div>
     <button id="restart-btn">Restart Server</button>
   </div>
 
   <script>
     let wakeLock = null;
+    let typingCanceled = false;
 
     async function requestWakeLock() {
       try {
@@ -162,6 +173,9 @@
     }
 
     document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('stop-btn').addEventListener('click', () => {
+      typingCanceled = true;
+    });
     document.getElementById('user-input').addEventListener('keypress', function (event) {
       if (event.key === 'Enter') sendMessage();
     });
@@ -177,6 +191,7 @@
 
       chatBox.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
       inputField.value = '';
+      typingCanceled = false;
 
       const modelDisplayName = modelSelect.options[modelSelect.selectedIndex].text;
 
@@ -225,32 +240,48 @@
       tempDiv.innerHTML = htmlString;
       const nodes = Array.from(tempDiv.childNodes);
 
-      let nodeIndex = 0;
-      let charIndex = 0;
-
       function scrollToBottom() {
         scrollAnchor.scrollIntoView({ behavior: 'smooth' });
       }
 
+      let nodeIndex = 0;
+
       function typeNext() {
-        if (nodeIndex >= nodes.length) {
-          releaseWakeLock(); // done typing
+        if (typingCanceled || nodeIndex >= nodes.length) {
+          // If stopped, just dump the rest of the response
+          container.innerHTML = htmlString;
+          scrollToBottom();
+          releaseWakeLock();
           return;
         }
 
         const currentNode = nodes[nodeIndex];
 
         if (currentNode.nodeType === Node.TEXT_NODE) {
-          if (charIndex < currentNode.textContent.length) {
-            container.innerHTML += currentNode.textContent.charAt(charIndex);
-            charIndex++;
-            scrollToBottom();
-            setTimeout(typeNext, 10);
-          } else {
-            charIndex = 0;
-            nodeIndex++;
-            typeNext();
+          const words = currentNode.textContent.split(/(\s+)/); // includes spaces
+          let wordIndex = 0;
+
+          function typeWord() {
+            if (typingCanceled) {
+              container.innerHTML = htmlString;
+              scrollToBottom();
+              releaseWakeLock();
+              return;
+            }
+
+            if (wordIndex < words.length) {
+              container.innerHTML += words[wordIndex];
+              wordIndex++;
+              navigator.vibrate?.(15); // vibrate per word
+              scrollToBottom();
+              setTimeout(typeWord, 100);
+            } else {
+              nodeIndex++;
+              typeNext();
+            }
           }
+
+          typeWord();
         } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
           const newElement = document.createElement(currentNode.nodeName);
           for (let attr of currentNode.attributes) {
@@ -259,15 +290,23 @@
 
           container.appendChild(newElement);
 
-          const innerText = currentNode.textContent;
+          const words = currentNode.textContent.split(/(\s+)/);
           let i = 0;
 
           function typeInElement() {
-            if (i < innerText.length) {
-              newElement.innerHTML += innerText.charAt(i);
-              i++;
+            if (typingCanceled) {
+              container.innerHTML = htmlString;
               scrollToBottom();
-              setTimeout(typeInElement, 10);
+              releaseWakeLock();
+              return;
+            }
+
+            if (i < words.length) {
+              newElement.innerHTML += words[i];
+              i++;
+              navigator.vibrate?.(15);
+              scrollToBottom();
+              setTimeout(typeInElement, 100);
             } else {
               nodeIndex++;
               typeNext();
