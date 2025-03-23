@@ -5,13 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ollama Web GUI</title>
   
-  <!-- Favicon for browser tabs -->
   <link rel="icon" href="webapp.png" type="image/png" />
-  
-  <!-- Apple Touch Icon for iOS home screen -->
   <link rel="apple-touch-icon" sizes="256x256" href="webapp.png" />
-
-  <!-- Web App Manifest -->
   <link rel="manifest" href="manifest.json" />
 
   <style>
@@ -41,6 +36,9 @@
       text-align: left;
       border-radius: 5px;
       margin-bottom: 20px;
+    }
+    #chat-box p {
+      white-space: pre-wrap;
     }
     #input-container {
       display: flex;
@@ -120,7 +118,6 @@
   <h1>Ollama Web GUI</h1>
   <div id="chat-container">
     <div id="chat-box"></div>
-    <!-- Model Selection + Input Row -->
     <div id="input-container">
       <select id="model-select">
         <option value="llama3:latest" selected>Llama3:latest</option>
@@ -155,14 +152,11 @@
       let message = inputField.value.trim();
       if (message === '') return;
 
-      // Display user message in the chat box
       chatBox.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
       inputField.value = '';
 
-      // Get the model's display name from the selected option text
       const modelDisplayName = modelSelect.options[modelSelect.selectedIndex].text;
 
-      // Prepare data for POST request
       const data = {
         message: message,
         model: modelSelect.value
@@ -176,11 +170,18 @@
         .then((response) => response.json())
         .then((data) => {
           if (data.response) {
-            chatBox.innerHTML += `<p><strong>${modelDisplayName}:</strong> ${data.response}</p>`;
+            const responseId = `res-${Date.now()}`;
+            chatBox.innerHTML += `<p><strong>${modelDisplayName}:</strong> <span id="${responseId}"></span></p>`;
+
+            // Pre-format text
+            let formattedResponse = data.response
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\n/g, '<br>');
+
+            typeTextEffect(responseId, formattedResponse);
           } else if (data.error) {
             chatBox.innerHTML += `<p><strong style="color:red;">Error:</strong> ${data.error}</p>`;
           }
-          // Auto-scroll to bottom
           setTimeout(() => {
             chatBox.scrollTop = chatBox.scrollHeight;
           }, 100);
@@ -190,6 +191,80 @@
           console.error('Error:', error);
         });
     }
+
+    function typeTextEffect(elementId, htmlString) {
+  const container = document.getElementById(elementId);
+  const chatBox = container.parentElement;
+
+  // Add a scroll anchor span that we can always scroll to
+  let scrollAnchor = document.createElement("span");
+  scrollAnchor.id = `scroll-anchor-${Date.now()}`;
+  chatBox.appendChild(scrollAnchor);
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlString;
+  const nodes = Array.from(tempDiv.childNodes);
+
+  let nodeIndex = 0;
+  let charIndex = 0;
+
+  function scrollToBottom() {
+    scrollAnchor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function typeNext() {
+    if (nodeIndex >= nodes.length) return;
+
+    const currentNode = nodes[nodeIndex];
+
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+      if (charIndex < currentNode.textContent.length) {
+        container.innerHTML += currentNode.textContent.charAt(charIndex);
+        charIndex++;
+        scrollToBottom();
+        setTimeout(typeNext, 10);
+      } else {
+        charIndex = 0;
+        nodeIndex++;
+        typeNext();
+      }
+    } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+      const newElement = document.createElement(currentNode.nodeName);
+      for (let attr of currentNode.attributes) {
+        newElement.setAttribute(attr.name, attr.value);
+      }
+
+      container.appendChild(newElement);
+
+      const innerText = currentNode.textContent;
+      let i = 0;
+
+      function typeInElement() {
+        if (i < innerText.length) {
+          newElement.innerHTML += innerText.charAt(i);
+          i++;
+          scrollToBottom();
+          setTimeout(typeInElement, 10);
+        } else {
+          nodeIndex++;
+          typeNext();
+        }
+      }
+
+      if (currentNode.nodeName === "BR") {
+        nodeIndex++;
+        typeNext();
+      } else {
+        typeInElement();
+      }
+    } else {
+      nodeIndex++;
+      typeNext();
+    }
+  }
+
+  typeNext();
+}
 
     function restartServer() {
       fetch('/restart', {
