@@ -142,6 +142,21 @@
       background: #c9302c;
     }
 
+    #theme-toggle {
+      margin-bottom: 15px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      background: #444;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #theme-toggle:hover {
+      background: #555;
+    }
+
     p {
       margin: 8px 0;
     }
@@ -175,10 +190,58 @@
         width: 100%;
       }
     }
+
+    /* Light Mode Overrides */
+    .light-mode body {
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    .light-mode #chat-container {
+      background: #f0f0f0;
+      color: #000;
+    }
+
+    .light-mode #chat-box {
+      background: #ffffff;
+      color: #000;
+      border: 1px solid #ccc;
+    }
+
+    .light-mode #user-input,
+    .light-mode #model-select {
+      background: #fff;
+      color: #000;
+      border: 1px solid #ccc;
+    }
+
+    .light-mode #user-input::placeholder {
+      color: #888;
+    }
+
+    .light-mode #send-btn,
+    .light-mode #stop-btn,
+    .light-mode #upload-btn,
+    .light-mode #restart-btn {
+      background: #ddd;
+      color: #000;
+    }
+
+    .light-mode #send-btn:hover,
+    .light-mode #stop-btn:hover,
+    .light-mode #upload-btn:hover,
+    .light-mode #restart-btn:hover {
+      background: #ccc;
+    }
+
+    .light-mode strong {
+      color: #0057b7;
+    }
   </style>
 </head>
 <body>
   <h1>Ollama Web GUI</h1>
+  <button id="theme-toggle">Switch to Light Mode</button>
 
   <div id="chat-container">
     <input type="text" id="server-url" value="http://192.168.1.50:11434"
@@ -433,6 +496,26 @@
           console.error('Error:', error);
         });
     }
+
+    // Theme toggle logic
+    const themeToggle = document.getElementById('theme-toggle');
+
+    function setTheme(mode) {
+      document.documentElement.classList.toggle('light-mode', mode === 'light');
+      themeToggle.textContent = mode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode';
+      localStorage.setItem('theme', mode);
+    }
+
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = localStorage.getItem('theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      setTheme(newTheme);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      setTheme(savedTheme);
+    });
   </script>
 </body>
 </html>
