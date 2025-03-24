@@ -126,6 +126,12 @@
 <body>
   <h1>Ollama Web GUI</h1>
   <div id="chat-container">
+
+    <!-- Server URL Input (Pre-filled and aligned) -->
+    <input type="text" id="server-url" value="http://192.168.1.50:11434"
+      placeholder="Enter Ollama Server URL"
+      style="padding:10px; border-radius:5px; border:1px solid #444; background:#333; color:#e0e0e0; width: 100%; box-sizing: border-box; margin-bottom: 15px;">
+
     <div id="chat-box"></div>
     <div id="input-container">
       <select id="model-select">
@@ -185,6 +191,7 @@
       const inputField = document.getElementById('user-input');
       const modelSelect = document.getElementById('model-select');
       const chatBox = document.getElementById('chat-box');
+      const serverUrl = document.getElementById('server-url').value.trim() || "http://192.168.1.50:11434";
 
       let message = inputField.value.trim();
       if (message === '') return;
@@ -197,7 +204,8 @@
 
       const data = {
         message: message,
-        model: modelSelect.value
+        model: modelSelect.value,
+        server_url: serverUrl
       };
 
       fetch('/chat', {
@@ -248,7 +256,6 @@
 
       function typeNext() {
         if (typingCanceled || nodeIndex >= nodes.length) {
-          // If stopped, just dump the rest of the response
           container.innerHTML = htmlString;
           scrollToBottom();
           releaseWakeLock();
@@ -258,7 +265,7 @@
         const currentNode = nodes[nodeIndex];
 
         if (currentNode.nodeType === Node.TEXT_NODE) {
-          const words = currentNode.textContent.split(/(\s+)/); // includes spaces
+          const words = currentNode.textContent.split(/(\s+)/);
           let wordIndex = 0;
 
           function typeWord() {
@@ -272,7 +279,7 @@
             if (wordIndex < words.length) {
               container.innerHTML += words[wordIndex];
               wordIndex++;
-              navigator.vibrate?.(15); // vibrate per word
+              navigator.vibrate?.(15);
               scrollToBottom();
               setTimeout(typeWord, 100);
             } else {

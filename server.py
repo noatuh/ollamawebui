@@ -7,8 +7,8 @@ import keyboard
 
 app = Flask(__name__)
 
-# Default Ollama server configuration (consider using an environment variable for production)
-OLLAMA_SERVER = "http://192.168.1.50:11434"
+# Default Ollama server configuration (can be overridden per request)
+DEFAULT_OLLAMA_SERVER = "http://192.168.1.50:11434"
 DEFAULT_MODEL_NAME = "llama3:latest"
 
 # Initialize text-to-speech engine (not currently used in the chat flow)
@@ -27,24 +27,25 @@ def index():
 @app.route('/chat', methods=['POST'])
 def chat():
     global conversation_history
-    
+
     data = request.json
     if not data:
         return jsonify({"error": "Empty request data"}), 400
-    
+
     user_input = data.get("message", "").strip()
     model_name = data.get("model", DEFAULT_MODEL_NAME).strip()
-    
+    ollama_server = data.get("server_url", DEFAULT_OLLAMA_SERVER).strip()
+
     if not user_input:
         return jsonify({"error": "Empty input"}), 400
-    
+
     # Update conversation history with user message
     conversation_history += f"\nUser: {user_input}\n"
-    
+
     # Prepare request to Ollama server
     try:
         response = requests.post(
-            f"{OLLAMA_SERVER}/api/generate",
+            f"{ollama_server}/api/generate",
             json={
                 "model": model_name,
                 "prompt": conversation_history,
@@ -55,21 +56,21 @@ def chat():
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"API error: {str(e)}"}), 500
-    
+
     # Parse Ollama response
     try:
         result = response.json()
         bot_reply = result.get("response", "No response").strip()
     except ValueError:
         return jsonify({"error": "Failed to parse JSON from Ollama"}), 500
-    
+
     # Append bot reply using a generic "Bot:" label
     conversation_history += f"Bot: {bot_reply}\n"
-    
+
     # Optionally, use text-to-speech (uncomment if desired)
     # engine.say(bot_reply)
     # engine.runAndWait()
-    
+
     return jsonify({"response": bot_reply})
 
 @app.route('/restart', methods=['POST'])
