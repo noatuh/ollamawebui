@@ -10,6 +10,10 @@
   <link rel="manifest" href="manifest.json" />
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     :root {
       --bg-color: #121212;
       --text-color: #e0e0e0;
@@ -204,32 +208,37 @@
 
     @media (max-width: 600px) {
       #chat-container {
-        width: 90%;
+        width: 100%;
         padding: 10px;
       }
 
       #input-container {
         flex-direction: column;
+        align-items: center;
       }
 
       #model-select,
-      #user-input {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 10px;
-      }
-
+      #user-input,
       #send-btn,
       #stop-btn,
-      #upload-btn {
-        margin-left: 0;
-        margin-bottom: 10px;
+      #upload-btn,
+      #restart-btn {
         width: 100%;
+        max-width: 400px;
+        margin: 5px 0;
+        text-align: center;
+      }
+
+      #theme-toggle {
+        top: 10px;
+        right: 10px;
+        padding: 6px 10px;
+        font-size: 0.9em;
       }
     }
   </style>
 </head>
-<body>
+<body>  
   <h1>Ollama Web GUI</h1>
   <button id="theme-toggle">Toggle Theme</button>
 
