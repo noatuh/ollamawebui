@@ -131,6 +131,7 @@
     <input type="text" id="server-url" value="http://192.168.1.50:11434"
       placeholder="Enter Ollama Server URL"
       style="padding:10px; border-radius:5px; border:1px solid #444; background:#333; color:#e0e0e0; width: 100%; box-sizing: border-box; margin-bottom: 15px;">
+      <input type="file" id="image-upload" accept="image/*" />
 
     <div id="chat-box"></div>
     <div id="input-container">
@@ -187,25 +188,42 @@
     });
     document.getElementById('restart-btn').addEventListener('click', restartServer);
 
-    function sendMessage() {
-      const inputField = document.getElementById('user-input');
-      const modelSelect = document.getElementById('model-select');
-      const chatBox = document.getElementById('chat-box');
-      const serverUrl = document.getElementById('server-url').value.trim() || "http://192.168.1.50:11434";
+    async function sendMessage() {
+    const inputField = document.getElementById('user-input');
+    const modelSelect = document.getElementById('model-select');
+    const chatBox = document.getElementById('chat-box');
+    const serverUrl = document.getElementById('server-url').value.trim() || "http://192.168.1.50:11434";
+    const imageInput = document.getElementById('image-upload');
 
-      let message = inputField.value.trim();
-      if (message === '') return;
+    let message = inputField.value.trim();
+    if (message === '') return;
 
-      chatBox.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
-      inputField.value = '';
-      typingCanceled = false;
+    chatBox.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+    inputField.value = '';
+    typingCanceled = false;
 
-      const modelDisplayName = modelSelect.options[modelSelect.selectedIndex].text;
+    const modelDisplayName = modelSelect.options[modelSelect.selectedIndex].text;
 
+    let base64Image = null;
+
+    if (imageInput.files.length > 0) {
+      const file = imageInput.files[0];
+      const reader = new FileReader();
+      reader.onloadend = function () {
+        base64Image = reader.result.split(',')[1]; // Remove data:image/...;base64,
+        sendToServer();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      sendToServer();
+    }
+
+    function sendToServer() {
       const data = {
         message: message,
         model: modelSelect.value,
-        server_url: serverUrl
+        server_url: serverUrl,
+        image: base64Image // May be null
       };
 
       fetch('/chat', {
@@ -218,11 +236,9 @@
           if (data.response) {
             const responseId = `res-${Date.now()}`;
             chatBox.innerHTML += `<p><strong>${modelDisplayName}:</strong> <span id="${responseId}"></span></p>`;
-
             let formattedResponse = data.response
               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
               .replace(/\n/g, '<br>');
-
             typeTextEffect(responseId, formattedResponse);
           } else if (data.error) {
             chatBox.innerHTML += `<p><strong style="color:red;">Error:</strong> ${data.error}</p>`;
@@ -233,6 +249,7 @@
           console.error('Error:', error);
         });
     }
+  }
 
     async function typeTextEffect(elementId, htmlString) {
       const container = document.getElementById(elementId);
