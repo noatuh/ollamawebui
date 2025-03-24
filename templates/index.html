@@ -18,6 +18,7 @@
       margin: 0;
       padding: 20px;
     }
+
     #chat-container {
       width: 50%;
       margin: auto;
@@ -25,7 +26,9 @@
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+      position: relative;
     }
+
     #chat-box {
       height: 300px;
       overflow-y: auto;
@@ -36,10 +39,29 @@
       text-align: left;
       border-radius: 5px;
       margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
     }
-    #chat-box p {
-      white-space: pre-wrap;
+
+    #loading-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.5em;
+      color: rgba(255, 255, 255, 0.6);
+      animation: pulseText 1.5s infinite ease-in-out;
+      display: none;
+      pointer-events: none;
+      z-index: 2;
     }
+
+    @keyframes pulseText {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
     #input-container {
       display: flex;
       align-items: center;
@@ -47,6 +69,7 @@
       margin-bottom: 10px;
       flex-wrap: wrap;
     }
+
     #model-select {
       padding: 10px;
       background: #333;
@@ -55,6 +78,7 @@
       border-radius: 5px;
       margin-right: 10px;
     }
+
     #user-input {
       flex: 1;
       padding: 10px;
@@ -64,9 +88,11 @@
       border-radius: 5px;
       margin-right: 10px;
     }
+
     #user-input::placeholder {
       color: #aaa;
     }
+
     #send-btn,
     #stop-btn {
       padding: 10px 20px;
@@ -79,11 +105,12 @@
       margin-left: 10px;
       margin-top: 10px;
     }
+
     #send-btn:hover,
     #stop-btn:hover {
       background: #36734e;
     }
-    /* Upload button in blue */
+
     #upload-btn {
       padding: 10px 20px;
       cursor: pointer;
@@ -95,9 +122,11 @@
       margin-left: 10px;
       margin-top: 10px;
     }
+
     #upload-btn:hover {
       background: #286090;
     }
+
     #restart-btn {
       padding: 10px 20px;
       cursor: pointer;
@@ -108,29 +137,36 @@
       transition: background 0.3s;
       margin-top: 10px;
     }
+
     #restart-btn:hover {
       background: #c9302c;
     }
+
     p {
       margin: 8px 0;
     }
+
     strong {
       color: #8ab4f8;
     }
+
     @media (max-width: 600px) {
       #chat-container {
         width: 90%;
         padding: 10px;
       }
+
       #input-container {
         flex-direction: column;
       }
+
       #model-select,
       #user-input {
         width: 100%;
         margin-right: 0;
         margin-bottom: 10px;
       }
+
       #send-btn,
       #stop-btn,
       #upload-btn {
@@ -140,15 +176,19 @@
       }
     }
   </style>
-  
 </head>
 <body>
   <h1>Ollama Web GUI</h1>
+
   <div id="chat-container">
     <input type="text" id="server-url" value="http://192.168.1.50:11434"
       placeholder="Enter Ollama Server URL"
       style="padding:10px; border-radius:5px; border:1px solid #444; background:#333; color:#e0e0e0; width: 100%; box-sizing: border-box; margin-bottom: 15px;">
-    <div id="chat-box"></div>
+    
+    <div id="chat-box">
+      <div id="loading-text">Loading...</div>
+    </div>
+
     <div id="input-container">
       <select id="model-select">
         <option value="llama3:latest" selected>Llama3:latest</option>
@@ -162,12 +202,14 @@
         <option value="llava:latest">Llava:latest</option>
         <option value="llama3.2-vision:latest">Llama3.2-vision:latest</option>
       </select>
+
       <input type="text" id="user-input" placeholder="Type your message..." />
       <button id="send-btn">Send</button>
       <button id="stop-btn">Stop Typing</button>
       <input type="file" id="image-upload" accept="image/*" style="display: none;" />
       <button id="upload-btn">Upload Photo</button>
     </div>
+
     <button id="restart-btn">Restart Server</button>
   </div>
 
@@ -239,6 +281,8 @@
       }
 
       function sendToServer() {
+        document.getElementById('loading-text').style.display = 'block';
+
         const data = {
           message: message,
           model: modelSelect.value,
@@ -253,6 +297,8 @@
         })
           .then((response) => response.json())
           .then((data) => {
+            document.getElementById('loading-text').style.display = 'none';
+
             if (data.response) {
               const responseId = `res-${Date.now()}`;
               chatBox.innerHTML += `<p><strong>${modelDisplayName}:</strong> <span id="${responseId}"></span></p>`;
@@ -265,6 +311,7 @@
             }
           })
           .catch((error) => {
+            document.getElementById('loading-text').style.display = 'none';
             chatBox.innerHTML += `<p><strong style="color:red;">Error:</strong> Failed to reach server</p>`;
             console.error('Error:', error);
           });
