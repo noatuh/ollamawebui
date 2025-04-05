@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import requests
 import pyttsx3
 import os
@@ -19,6 +19,11 @@ engine.setProperty('voice', voices[selected_voice_index].id)
 
 # Global conversation history (note: this is shared among all sessions/models in this simple example)
 conversation_history = ""
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/')
 def index():
