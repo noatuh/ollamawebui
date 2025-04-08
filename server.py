@@ -41,12 +41,11 @@ def load_memories():
         print(f"Error reading memory file {MEMORY_FILE}: {e}")
         return ""
 
-def save_memory(user_message, bot_response):
-    """Appends a user message and bot response to the memory file."""
+def save_memory(user_message):
+    """Appends a user message to the memory file."""
     try:
         with open(MEMORY_FILE, 'a', encoding='utf-8') as f:
-            f.write(f"User: {user_message}\n")
-            f.write(f"Bot: {bot_response}\n\n") # Add extra newline for readability
+            f.write(f"User: {user_message}\n\n")  # Only save user message
     except IOError as e:
         print(f"Error writing to memory file {MEMORY_FILE}: {e}")
 
@@ -129,7 +128,7 @@ def chat():
     conversation_history += current_user_prompt + bot_response_line # Update session history
 
     if remember_this:
-        save_memory(user_input, bot_reply) # Save this interaction to persistent memory
+        save_memory(user_input) # Save only the user message to persistent memory
 
     return jsonify({"response": bot_reply})
 
